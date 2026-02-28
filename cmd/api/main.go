@@ -5,6 +5,7 @@ import (
 
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/config"
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/database"
+	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/handlers"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -38,6 +39,8 @@ func main() {
 			"database": "connected",
 		})
 	})
+
+	router.POST("/todos", handlers.CreateTodoHandler(pool))
 
 	router.Run(":" + cfg.Port)
 }
