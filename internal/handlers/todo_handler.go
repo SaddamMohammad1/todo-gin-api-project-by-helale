@@ -15,6 +15,20 @@ type CreateTodoInput struct {
 	Completed bool   `json:"completed"`                // Optional field
 }
 
+// UpdateTodoInput represents fields that can be updated in a TODO item.
+// Using pointers allows us to detect if the client actually sent a field or not.
+type UpdateTodoInput struct {
+	// If Title is nil => user did NOT send "title"
+	// If Title has value => use the updated title
+	Title *string `json:"title"`
+
+	// Examples:
+	// &true  => set completed = true
+	// &false => set completed = false
+	// nil    => user did NOT send completed field
+	Completed *bool `json:"completed"`
+}
+
 // Handler function for creating a new todo item
 func CreateTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 
@@ -89,6 +103,75 @@ func GetTodoByIdHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			ctx.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})
+		}
+
+		ctx.JSON(http.StatusOK, todo)
+	}
+}
+
+func UpdateTodoHandler(pool *pgxpool.Pool) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		idStr := ctx.Param("id")
+
+		id, err := strconv.Atoi(idStr)
+
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": "Invalid todo ID",
+			})
+		}
+
+		var input UpdateTodoInput
+
+		if err = ctx.ShouldBindJSON(&input); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		if input.Title == nil && input.Completed == nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": "at least one field (title or completed) must be provided",
+			})
+			return
+		}
+
+		// Get the existing data uisng id and GetTodoById func
+		existing, err := repository.GetTodoById(pool, id)
+
+		if err != nil {
+			if err == pgx.ErrNoRows {
+				ctx.JSON(http.StatusNotFound, gin.H{
+					"error": "todo not found",
+				})
+				return
+			}
+
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+
+			return
+		}
+
+		// store the existing title value
+		title := existing.Title
+		// If user provide the title value then store updated title value in title variable
+		if input.Title != nil {
+			title = *input.Title
+		}
+
+		// store the existing completed value
+		completed := existing.Completed
+		// If user provide the completed value then store updated completed value in completed variable
+		if input.Completed != nil {
+			completed = *input.Completed
+		}
+
+		todo, err := repository.UpdateTodo(pool, id, title, completed)
+
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
 		}
 
 		ctx.JSON(http.StatusOK, todo)
