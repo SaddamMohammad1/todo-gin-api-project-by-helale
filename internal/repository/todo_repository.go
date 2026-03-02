@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/models"
@@ -165,4 +166,32 @@ func UpdateTodo(pool *pgxpool.Pool, id int, title string, completed bool) (*mode
 	}
 
 	return &todo, nil
+}
+
+func DeleteTodo(pool *pgxpool.Pool, id int) error {
+	var ctx context.Context
+	var cancel context.CancelFunc
+	ctx, cancel = context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var query string = `
+		DELETE FROM todos
+		WHERE id = $1
+	`
+
+	// Execute DELETE query with the provided id.
+	var commandTag, err = pool.Exec(ctx, query, id)
+
+	if err != nil {
+		return err
+	}
+
+	// commandTag.RowsAffected() tells how many rows were deleted.
+	// If 0 → no todo exists with given ID.
+	// Example: If id = 10 but no row with id 10, return not found error.
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("todo with id %d not found", id)
+	}
+
+	return nil
 }
