@@ -6,6 +6,7 @@ import (
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/config"
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/database"
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/handlers"
+	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/middleware"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -48,6 +49,9 @@ func main() {
 
 	router.POST("/auth/register", handlers.CreateUserHandler(pool))
 	router.POST("/auth/login", handlers.LoginHandler(pool, cfg))
+
+	// Middleware test route
+	router.GET("/protected-test", middleware.AuthMiddleware(cfg), handlers.TestProtectedHandler())
 
 	router.Run(":" + cfg.Port)
 }
