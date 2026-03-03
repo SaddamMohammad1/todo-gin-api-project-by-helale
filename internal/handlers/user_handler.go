@@ -3,10 +3,13 @@ package handlers
 import (
 	"net/http"
 	"strings"
+	"time"
 
+	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/config"
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/models"
 	"github.com/SaddamMohammad1/todo-rest-api-using-gin-part2/internal/repository"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -14,6 +17,15 @@ import (
 type RegisterRequest struct {
 	Email    string `json:"email" binding:"required"`
 	Password string `json:"password" binding:"required"`
+}
+
+type LoginRequest struct {
+	Email    string `json:"email" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type LoginResponse struct {
+	Token string `json:"token"`
 }
 
 func CreateUserHandler(pool *pgxpool.Pool) gin.HandlerFunc {
@@ -53,7 +65,7 @@ func CreateUserHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			Password: string(hashedPassword),
 		}
 
-		// Save todo item to database using repository function
+		// Save user item to database using repository function
 		createdUser, err := repository.CreateUser(pool, user)
 
 		// If DB failed, return 500 Internal Server Error
@@ -70,7 +82,59 @@ func CreateUserHandler(pool *pgxpool.Pool) gin.HandlerFunc {
 			return
 		}
 
-		// Return 201 Created with created todo object
+		// Return 201 Created with created user object
 		c.JSON(http.StatusCreated, createdUser)
+	}
+}
+
+func LoginHandler(pool *pgxpool.Pool, cfg *config.Config) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var loginRequest LoginRequest
+
+		if err := ctx.BindJSON(&loginRequest); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		user, err := repository.GetUserByEmail(pool, loginRequest.Email)
+
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid credentials",
+			})
+			return
+		}
+
+		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(loginRequest.Password))
+
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid credentials",
+			})
+			return
+		}
+
+		// map[string]any{}
+		claims := jwt.MapClaims{
+			"user_id": user.ID,
+			"email":   user.Email,
+			"exp":     time.Now().Add(24 * time.Hour).Unix(),
+		}
+
+		token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+		tokenString, err := token.SignedString([]byte(cfg.JWTSecret))
+
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to generate token: " + err.Error(),
+			})
+		}
+
+		ctx.JSON(http.StatusOK, LoginResponse{
+			Token: tokenString,
+		})
 	}
 }
