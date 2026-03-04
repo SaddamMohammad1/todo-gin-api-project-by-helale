@@ -33,6 +33,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// Parse and validate the JWT token
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 			if token.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 				return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
@@ -48,6 +49,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// Extract user_id from token claims
 		claims, ok := token.Claims.(jwt.MapClaims)
 
 		if !ok {
@@ -58,6 +60,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// Ensure user_id is a string
 		userID, ok := claims["user_id"].(string)
 
 		if !ok {
@@ -68,6 +71,7 @@ func AuthMiddleware(cfg *config.Config) gin.HandlerFunc {
 			return
 		}
 
+		// Check token expiration time
 		if exp, ok := claims["exp"].(float64); ok {
 			expirationTime := time.Unix(int64(exp), 0)
 
