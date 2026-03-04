@@ -17,6 +17,8 @@
 -> This users migration is creating 4H 48Min video playtime
 -> migrate create -ext sql -dir migrations -seq create_users_api_table
 
+-> migrate create -ext sql -dir migrations -seq add_user_id_to_todos_table
+
 # Migrate Command
 # Run migrate command after script create in this path -> scripts/migrate.ps1
 -> up -> .\scripts\migrate.ps1 up
